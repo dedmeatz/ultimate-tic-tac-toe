@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Ultimate Tic-Tac-Toe</title>
+  
+  <!-- Web App Manifest (Data URI for Standalone Execution) -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Chalk Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Caveat:wght@600;700&family=Patrick+Hand&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            chalk: ['"Architects Daughter"', '"Caveat"', 'cursive'],
+            hand: ['"Patrick Hand"', 'cursive'],
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            chalkboard: '#18241f',
+            chalkboardDark: '#0e1814',
+            chalkWhite: '#f8fafc',
+            chalkX: '#38bdf8', /* Sky Blue Chalk */
+            chalkO: '#fb7185', /* Rose Pink Chalk */
+            chalkYellow: '#fef08a',
+            chalkGreen: '#4ade80',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom chalkboard texture & chalk strokes */
+    body {
+      background-color: #0d1612;
+      background-image: 
+        radial-gradient(circle at 50% 50%, rgba(30, 48, 40, 0.5) 0%, rgba(10, 18, 14, 0.95) 100%),
+        radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 100% 100%, 24px 24px;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    /* Chalk dust and rough stroke filters */
+    .chalk-border-thick {
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85), inset 0 0 6px rgba(255, 255, 255, 0.3);
+      filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.4));
+    }
+
+    .chalk-line {
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.6));
+    }
+
+    .chalk-glow-x {
+      filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.7));
+    }
+
+    .chalk-glow-o {
+      filter: drop-shadow(0 0 8px rgba(251, 113, 133, 0.7));
+    }
+
+    .active-board-highlight {
+      box-shadow: 0 0 0 4px #fef08a, 0 0 20px rgba(254, 240, 138, 0.45);
+      animation: pulse-border 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 0 0 3px #fef08a, 0 0 15px rgba(254, 240, 138, 0.3); }
+      50% { box-shadow: 0 0 0 5px #ffffff, 0 0 25px rgba(255, 255, 255, 0.6); }
+    }
+
+    /* Smooth Zoom Transition on Arena */
+    #board-zoom-layer {
+      transition: transform 0.6s cubic-bezier(0.25, 1, 0.35, 1);
+      transform-origin: center center;
+    }
+
+    /* Custom Scrollbar for modal */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen text-slate-100 flex flex-col justify-between overflow-x-hidden font-sans">
+
+  <!-- ================= TOP NAVIGATION BAR ================= -->
+  <header class="w-full bg-slate-900/80 backdrop-blur-md border-b border-emerald-950/60 px-4 py-3 sticky top-0 z-40">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      
+      <!-- Title & Branding -->
+      <div class="flex items-center space-x-2">
+        <div class="w-9 h-9 rounded-lg bg-emerald-950/80 border border-emerald-500/40 flex items-center justify-center text-chalkWhite shadow-inner">
+          <svg class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M9 3v18"/>
+            <path d="M15 3v18"/>
+            <path d="M3 9h18"/>
+            <path d="M3 15h18"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="font-chalk text-xl md:text-2xl text-chalkWhite tracking-wide font-bold leading-tight">
+            Ultimate Tic-Tac-Toe
+          </h1>
+          <p class="text-[11px] text-emerald-400/80 font-hand tracking-wider">CHALKBOARD STRATEGY • 2 PLAYERS</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center space-x-1 sm:space-x-2">
+        <!-- Audio Toggle -->
+        <button id="btn-sound" class="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 transition-all" title="Toggle Sound FX">
+          <svg id="icon-sound-on" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+          <svg id="icon-sound-off" class="w-5 h-5 hidden text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+            <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4l-5 4H4v6h4"></path>
+            <path d="M17 14.54A7 7 0 0 0 17 9.46"></path>
+          </svg>
+        </button>
+
+        <!-- Rules Info Modal Button -->
+        <button id="btn-rules" class="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-amber-300 transition-all flex items-center space-x-1 px-3" title="How to Play">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <span class="text-xs font-semibold hidden sm:inline">Rules</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= STATUS & TURN BANNER ================= -->
+  <div class="w-full max-w-4xl mx-auto px-4 pt-3 pb-1">
+    <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 shadow-lg flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Current Player Turn Display -->
+      <div class="flex items-center space-x-3">
+        <div id="turn-badge" class="w-11 h-11 rounded-lg border-2 flex items-center justify-center font-chalk text-2xl font-bold transition-all bg-sky-950/70 border-sky-400 text-chalkX shadow-lg shadow-sky-500/20">
+          X
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span id="turn-player-name" class="font-chalk text-lg md:text-xl font-bold text-sky-400">Player 1 (X)</span>
+            <span class="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700 font-hand">Your Turn</span>
+          </div>
+          <p id="turn-guidance" class="text-xs font-hand text-slate-300 flex items-center gap-1 mt-0.5">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span>Choose any square to begin</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Live Score & Zoom Controls -->
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        <!-- Score pill -->
+        <div class="bg-slate-950/80 px-3 py-1.5 rounded-lg border border-slate-800 flex items-center space-x-3 text-xs font-mono">
+          <span class="text-sky-400 font-bold">X: <span id="score-x">0</span></span>
+          <span class="text-slate-500">|</span>
+          <span class="text-rose-400 font-bold">O: <span id="score-o">0</span></span>
+        </div>
+
+        <!-- Zoom In / Out Buttons -->
+        <div class="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+          <button id="btn-zoom-out" class="p-1.5 sm:px-2.5 rounded-md hover:bg-slate-700 text-slate-300 transition-colors flex items-center text-xs font-medium gap-1" title="Zoom Out (Full View)">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              <line x1="8" y1="11" x2="14" y2="11"></line>
+            </svg>
+            <span class="hidden md:inline">Full Board</span>
+          </button>
+
+          <button id="btn-zoom-in" class="p-1.5 sm:px-2.5 rounded-md hover:bg-slate-700 text-slate-300 transition-colors flex items-center text-xs font-medium gap-1" title="Zoom In (Active Mini-Board)">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              <line x1="11" y1="8" x2="11" y2="14"></line>
+              <line x1="8" y1="11" x2="14" y2="11"></line>
+            </svg>
+            <span class="hidden md:inline">Focus Board</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= MAIN GAME ARENA ================= -->
+  <main class="flex-1 flex flex-col items-center justify-center p-2 sm:p-4 my-auto relative w-full overflow-hidden">
+    
+    <!-- Viewport Mask for Zooming -->
+    <div id="board-viewport" class="relative w-full max-w-[430px] aspect-square overflow-hidden rounded-2xl bg-[#121c17] border-4 border-slate-700 shadow-2xl p-2 sm:p-3">
+      
+      <!-- Chalkboard Texture Pattern Overlay -->
+      <div class="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-100 via-transparent to-black"></div>
+
+      <!-- Zoom and Pan Transform Container -->
+      <div id="board-zoom-layer" class="w-full h-full relative grid grid-cols-3 grid-rows-3 gap-2 sm:gap-2.5 p-1">
+        <!-- 9 Mini-Boards (0 to 8) will be dynamically initialized or rendered here -->
+      </div>
+
+    </div>
+
+    <!-- Pass-and-Play Quick Notification Pill -->
+    <div id="pass-prompt" class="mt-2 text-xs font-hand text-amber-200 bg-amber-950/60 border border-amber-500/30 px-3 py-1 rounded-full opacity-0 transition-opacity duration-500 pointer-events-none">
+      📱 Pass device to Player 2 (O)
+    </div>
+
+  </main>
+
+  <!-- ================= BOTTOM TOOLBAR ================= -->
+  <footer class="w-full bg-slate-900/90 backdrop-blur-md border-t border-slate-800 px-4 py-3 z-30">
+    <div class="max-w-md mx-auto flex items-center justify-between gap-3">
+      
+      <!-- Undo Move Button -->
+      <button id="btn-undo" class="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-slate-200 font-medium text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:pointer-events-none">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7v6h6"></path>
+          <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
+        </svg>
+        <span>Undo</span>
+      </button>
+
+      <!-- Reset Game Button -->
+      <button id="btn-reset" class="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 hover:border-rose-500/40 active:scale-95 border border-slate-700 text-slate-200 font-medium text-sm flex items-center justify-center gap-2 transition-all">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1 4 1 10 7 10"></polyline>
+          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+        </svg>
+        <span>Reset Board</span>
+      </button>
+
+      <!-- Zoom Toggle Pill (Mobile Quick-Switch) -->
+      <button id="btn-toggle-view" class="py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-medium text-sm flex items-center justify-center gap-1.5 shadow-md shadow-blue-600/30 transition-all">
+        <svg id="view-icon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <span id="view-text">Zoom Out</span>
+      </button>
+
+    </div>
+  </footer>
+
+  <!-- ================= RULES MODAL ================= -->
+  <div id="modal-rules" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+          </div>
+          <h3 class="text-xl font-chalk font-bold text-chalkWhite">How to Play Ultimate TTT</h3>
+        </div>
+        <button id="btn-close-rules" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="p-5 overflow-y-auto custom-scrollbar space-y-4 text-sm text-slate-300 leading-relaxed font-sans">
+        
+        <!-- Rule 1: The Giant Grid -->
+        <div class="p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 flex gap-3">
+          <div class="font-chalk text-2xl font-bold text-emerald-400 w-6">1.</div>
+          <div>
+            <h4 class="font-semibold text-slate-100 font-chalk text-base mb-1">The 9x9 Setup</h4>
+            <p class="text-xs text-slate-300">The board consists of 9 smaller Tic-Tac-Toe boards arranged in a giant 3x3 grid (81 total squares).</p>
+          </div>
+        </div>
+
+        <!-- Rule 2: Board Guidance (The Core Mechanic) -->
+        <div class="p-3.5 rounded-xl bg-blue-950/40 border border-blue-500/30 flex gap-3">
+          <div class="font-chalk text-2xl font-bold text-sky-400 w-6">2.</div>
+          <div>
+            <h4 class="font-semibold text-sky-300 font-chalk text-base mb-1">Board Guidance (Core Rule)</h4>
+            <p class="text-xs text-slate-200">
+              <strong>Your move dictates where your opponent must play next!</strong><br/>
+              If you play in the <span class="text-amber-300 font-medium">top-right</span> cell of any small board, the opponent is forced to make their next move inside the <span class="text-amber-300 font-medium">top-right</span> giant board.
+            </p>
+          </div>
+        </div>
+
+        <!-- Rule 3: Winning a Small Board -->
+        <div class="p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 flex gap-3">
+          <div class="font-chalk text-2xl font-bold text-amber-400 w-6">3.</div>
+          <div>
+            <h4 class="font-semibold text-slate-100 font-chalk text-base mb-1">Claiming Small Boards</h4>
+            <p class="text-xs text-slate-300">Getting 3 marks in a row inside a small board claims that entire sector with a giant chalk X or O on the master board.</p>
+          </div>
+        </div>
+
+        <!-- Rule 4: Free Play -->
+        <div class="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 flex gap-3">
+          <div class="font-chalk text-2xl font-bold text-emerald-400 w-6">4.</div>
+          <div>
+            <h4 class="font-semibold text-emerald-300 font-chalk text-base mb-1">The Free Play Rule</h4>
+            <p class="text-xs text-slate-200">
+              If you are directed to a small board that has <strong>already been won</strong> or is <strong>completely full</strong> (Cat's game), you earn a <span class="text-emerald-300 font-bold">Free Play</span> and can mark any open square anywhere on the master board!
+            </p>
+          </div>
+        </div>
+
+        <!-- Rule 5: Winning the Game -->
+        <div class="p-3.5 rounded-xl bg-purple-950/40 border border-purple-500/30 flex gap-3">
+          <div class="font-chalk text-2xl font-bold text-purple-400 w-6">5.</div>
+          <div>
+            <h4 class="font-semibold text-purple-300 font-chalk text-base mb-1">Winning the Ultimate Game</h4>
+            <p class="text-xs text-slate-200">The first player to align 3 giant claimed boards in a row (horizontal, vertical, or diagonal) wins the Ultimate Match!</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-4 bg-slate-950/60 border-t border-slate-800 flex justify-end">
+        <button id="btn-got-it" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm transition-all shadow-md shadow-blue-600/30">
+          Got it, Let's Play!
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= VICTORY / GAME OVER MODAL ================= -->
+  <div id="modal-gameover" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-slate-900 border-2 border-emerald-500/60 rounded-2xl max-w-md w-full p-6 text-center shadow-2xl transform scale-95 transition-transform duration-300" id="gameover-card">
+      
+      <!-- Winner Trophy Icon -->
+      <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-inner">
+        <svg class="w-10 h-10 animate-bounce" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2"></path>
+          <path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2"></path>
+          <path d="M4 22h16"></path>
+          <path d="M10 14.66V17c0 .55-.45 1-1 1H7c-.55 0-1 .45-1 1v1h12v-1c0-.55-.45-1-1-1h-2c-.55 0-1-.45-1-1v-2.34"></path>
+          <path d="M18 2H6v7a6 6 0 0 0 12 0V2z"></path>
+        </svg>
+      </div>
+
+      <h2 id="winner-title" class="font-chalk text-3xl md:text-4xl font-bold text-chalkWhite mb-1">
+        PLAYER 1 WINS!
+      </h2>
+      <p id="winner-subtitle" class="font-hand text-lg text-emerald-400 mb-5">
+        Achieved 3 Giant Boards in a Row!
+      </p>
+
+      <!-- Match Recap Stats -->
+      <div class="grid grid-cols-2 gap-3 mb-6 font-mono text-xs">
+        <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700">
+          <span class="text-slate-400 block mb-0.5">X Boards Won</span>
+          <span id="recap-x-boards" class="text-lg font-bold text-sky-400">0</span>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700">
+          <span class="text-slate-400 block mb-0.5">O Boards Won</span>
+          <span id="recap-o-boards" class="text-lg font-bold text-rose-400">0</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex gap-3">
+        <button id="btn-play-again" class="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-chalk text-lg font-bold shadow-lg shadow-blue-600/40 transition-all">
+          Play Again
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= JAVASCRIPT GAME ENGINE ================= -->
+  <script>
+    /**
+     * Ultimate Tic-Tac-Toe - Monolithic Game Controller
+     * Implements full 81-cell nested logic, SVG chalk rendering, Pass-and-Play UX,
+     * smooth zoom-pan transitions, Web Audio synthesis, and undo history.
+     */
+    (function () {
+      'use strict';
+
+      // --- Winning Combinations for 3x3 Grid ---
+      const WIN_COMBOS = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+        [0, 3, 6], [1, 4, 7], [2, 5, 8], // Cols
+        [0, 4, 8], [2, 4, 6]             // Diagonals
+      ];
+
+      // --- Game State ---
+      const gameState = {
+        // 9 mini-boards, each with 9 cells (null, 'X', or 'O')
+        boards: Array.from({ length: 9 }, () => Array(9).fill(null)),
+        // Status of each mini-board: null (ongoing), 'X', 'O', or 'T' (Tie/Cat)
+        boardWinners: Array(9).fill(null),
+        // Active board target: 0..8, or -1 for Free Play
+        activeBoard: -1,
+        // Current player: 'X' or 'O'
+        currentPlayer: 'X',
+        // Overall game winner: null, 'X', 'O', or 'T'
+        gameWinner: null,
+        // Move history stack for Undo
+        history: [],
+        // Lifetime session scores
+        scores: { X: 0, O: 0 },
+        // Zoom & Camera State: 'overview' | 'focused'
+        zoomState: 'overview',
+        focusedBoardIndex: 4, // default center
+        soundEnabled: true
+      };
+
+      // --- DOM Elements ---
+      const dom = {
+        boardZoomLayer: document.getElementById('board-zoom-layer'),
+        boardViewport: document.getElementById('board-viewport'),
+        turnBadge: document.getElementById('turn-badge'),
+        turnPlayerName: document.getElementById('turn-player-name'),
+        turnGuidance: document.getElementById('turn-guidance'),
+        passPrompt: document.getElementById('pass-prompt'),
+        scoreX: document.getElementById('score-x'),
+        scoreO: document.getElementById('score-o'),
+        btnUndo: document.getElementById('btn-undo'),
+        btnReset: document.getElementById('btn-reset'),
+        btnZoomOut: document.getElementById('btn-zoom-out'),
+        btnZoomIn: document.getElementById('btn-zoom-in'),
+        btnToggleView: document.getElementById('btn-toggle-view'),
+        viewText: document.getElementById('view-text'),
+        btnSound: document.getElementById('btn-sound'),
+        iconSoundOn: document.getElementById('icon-sound-on'),
+        iconSoundOff: document.getElementById('icon-sound-off'),
+        btnRules: document.getElementById('btn-rules'),
+        modalRules: document.getElementById('modal-rules'),
+        btnCloseRules: document.getElementById('btn-close-rules'),
+        btnGotIt: document.getElementById('btn-got-it'),
+        modalGameOver: document.getElementById('modal-gameover'),
+        gameoverCard: document.getElementById('gameover-card'),
+        winnerTitle: document.getElementById('winner-title'),
+        winnerSubtitle: document.getElementById('winner-subtitle'),
+        recapXBoards: document.getElementById('recap-x-boards'),
+        recapOBoards: document.getElementById('recap-o-boards'),
+        btnPlayAgain: document.getElementById('btn-play-again')
+      };
+
+      // --- Web Audio Synthesizer (Zero external audio files) ---
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      function playSound(type) {
+        if (!gameState.soundEnabled || audioCtx.state === 'suspended') {
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+          if (!gameState.soundEnabled) return;
+        }
+
+        const now = audioCtx.currentTime;
+
+        if (type === 'markX') {
+          // Sharp, crisp high chalk stroke
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.09);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.1);
+        } else if (type === 'markO') {
+          // Warm resonant circular chalk stroke
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(440, now);
+          osc.frequency.exponentialRampToValueAtTime(260, now + 0.1);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.11);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        } else if (type === 'boardWin') {
+          // Major celebratory 3-tone arpeggio
+          [523.25, 659.25, 783.99].forEach((freq, idx) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.15, now + idx * 0.09);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.09 + 0.35);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + idx * 0.09);
+            osc.stop(now + idx * 0.09 + 0.36);
+          });
+        } else if (type === 'gameWin') {
+          // Grand chord fanfare
+          [523.25, 659.25, 783.99, 1046.5].forEach((freq) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.85);
+          });
+        } else if (type === 'zoom') {
+          // Low whoosh sweep
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(150, now);
+          osc.frequency.exponentialRampToValueAtTime(300, now + 0.15);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.linearRampToValueAtTime(0.001, now + 0.18);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.2);
+        }
+      }
+
+      // --- Helper SVG Generators for Chalk Marks ---
+      function getChalkXSVG(sizeClass = "w-full h-full p-1") {
+        return `
+          <svg class="${sizeClass} chalk-glow-x" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 18 C 30 32, 68 70, 82 82 M22 19 C 45 45, 60 62, 80 84" stroke="#38bdf8" stroke-width="12" stroke-linecap="round" class="chalk-line"/>
+            <path d="M82 18 C 70 30, 32 68, 18 82 M80 20 C 60 42, 40 65, 18 80" stroke="#7dd3fc" stroke-width="10" stroke-linecap="round" class="chalk-line"/>
+          </svg>
+        `;
+      }
+
+      function getChalkOSVG(sizeClass = "w-full h-full p-1") {
+        return `
+          <svg class="${sizeClass} chalk-glow-o" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M50 14 C 70 14, 86 30, 86 50 C 86 70, 70 86, 50 86 C 30 86, 14 70, 14 50 C 14 30, 30 14, 52 14" stroke="#fb7185" stroke-width="11" stroke-linecap="round" class="chalk-line"/>
+            <path d="M50 18 C 68 18, 82 32, 82 50 C 82 68, 68 82, 50 82 C 32 82, 18 68, 18 50 C 18 32, 32 18, 48 18" stroke="#fda4af" stroke-width="9" stroke-linecap="round" class="chalk-line"/>
+          </svg>
+        `;
+      }
+
+      function getChalkTieSVG() {
+        return `
+          <svg class="w-full h-full p-2 opacity-60" viewBox="0 0 100 100" fill="none">
+            <line x1="20" y1="50" x2="80" y2="50" stroke="#94a3b8" stroke-width="10" stroke-linecap="round" />
+            <line x1="50" y1="20" x2="50" y2="80" stroke="#94a3b8" stroke-width="10" stroke-linecap="round" />
+          </svg>
+        `;
+      }
+
+      // --- Board Initialization ---
+      function initDOMBoard() {
+        dom.boardZoomLayer.innerHTML = '';
+
+        for (let b = 0; b < 9; b++) {
+          const miniBoard = document.createElement('div');
+          miniBoard.className = `mini-board relative rounded-xl p-1 sm:p-1.5 transition-all duration-300 flex flex-col justify-center items-center bg-[#15241d]/90 border-2 border-emerald-900/80 shadow-md`;
+          miniBoard.dataset.boardIdx = b;
+
+          // 3x3 Internal grid of cells
+          const grid = document.createElement('div');
+          grid.className = 'w-full h-full grid grid-cols-3 grid-rows-3 gap-1';
+
+          for (let c = 0; c < 9; c++) {
+            const cell = document.createElement('button');
+            cell.className = `cell w-full h-full rounded-md bg-[#0f1b15]/90 hover:bg-[#1a2d24] flex items-center justify-center transition-colors active:scale-95 disabled:pointer-events-none relative overflow-hidden`;
+            cell.dataset.boardIdx = b;
+            cell.dataset.cellIdx = c;
+            cell.setAttribute('aria-label', `Board ${b + 1} Cell ${c + 1}`);
+
+            // Click Handler
+            cell.addEventListener('click', () => handleCellClick(b, c));
+
+            grid.appendChild(cell);
+          }
+
+          miniBoard.appendChild(grid);
+
+          // Giant Overlay for won/tied mini-board
+          const overlay = document.createElement('div');
+          overlay.className = 'board-overlay absolute inset-0 rounded-xl flex items-center justify-center pointer-events-none z-10 transition-all duration-500 opacity-0 scale-50 bg-[#121f19]/95 backdrop-blur-[1px]';
+          overlay.dataset.overlayBoard = b;
+          miniBoard.appendChild(overlay);
+
+          // Board Position Label / Mini Badge (0 to 8)
+          const badge = document.createElement('div');
+          badge.className = 'absolute top-1 left-1.5 text-[9px] font-mono text-emerald-600/70 pointer-events-none select-none';
+          badge.textContent = `${b + 1}`;
+          miniBoard.appendChild(badge);
+
+          dom.boardZoomLayer.appendChild(miniBoard);
+        }
+      }
+
+      // --- Check 3-in-a-row Win Conditions ---
+      function checkWinner(boardArray) {
+        for (const combo of WIN_COMBOS) {
+          const [a, b, c] = combo;
+          if (boardArray[a] && boardArray[a] === boardArray[b] && boardArray[a] === boardArray[c]) {
+            return { winner: boardArray[a], combo };
+          }
+        }
+        // Check for Cat's tie (board completely filled with no win)
+        if (boardArray.every(cell => cell !== null)) {
+          return { winner: 'T', combo: null };
+        }
+        return null;
+      }
+
+      // --- Core Move Execution ---
+      function handleCellClick(boardIdx, cellIdx) {
+        // Guard checks
+        if (gameState.gameWinner) return;
+        if (gameState.boardWinners[boardIdx] !== null) return;
+        if (gameState.boards[boardIdx][cellIdx] !== null) return;
+
+        // Verify validity according to Ultimate TTT Rules
+        if (gameState.activeBoard !== -1 && gameState.activeBoard !== boardIdx) {
+          // Shake camera/indicator to signal invalid board
+          shakeActiveBoard();
+          return;
+        }
+
+        // 1. Snapshot state for Undo Stack
+        gameState.history.push({
+          boardIdx,
+          cellIdx,
+          player: gameState.currentPlayer,
+          prevActiveBoard: gameState.activeBoard,
+          prevBoardWinners: [...gameState.boardWinners],
+          prevGameWinner: gameState.gameWinner
+        });
+
+        // 2. Mark the Cell
+        gameState.boards[boardIdx][cellIdx] = gameState.currentPlayer;
+        playSound(gameState.currentPlayer === 'X' ? 'markX' : 'markO');
+
+        // 3. Evaluate Mini-Board Win
+        const miniWinResult = checkWinner(gameState.boards[boardIdx]);
+        if (miniWinResult) {
+          gameState.boardWinners[boardIdx] = miniWinResult.winner;
+          if (miniWinResult.winner !== 'T') {
+            playSound('boardWin');
+          }
+
+          // 4. Evaluate Global Master Board Win
+          const globalWinResult = checkWinner(gameState.boardWinners);
+          if (globalWinResult) {
+            gameState.gameWinner = globalWinResult.winner;
+            if (globalWinResult.winner !== 'T') {
+              gameState.scores[globalWinResult.winner]++;
+              playSound('gameWin');
+            }
+          }
+        }
+
+        // 5. Determine Next Active Board according to Rule 3 & Rule 5
+        if (!gameState.gameWinner) {
+          // Whichever local cell was chosen directs the opponent to that global board
+          const nextTargetBoard = cellIdx;
+
+          // Free Play Rule: If target board is already won or full, player gets Free Play (-1)
+          if (gameState.boardWinners[nextTargetBoard] !== null) {
+            gameState.activeBoard = -1; // Free play anywhere
+          } else {
+            gameState.activeBoard = nextTargetBoard;
+          }
+
+          // Toggle Turn
+          gameState.currentPlayer = gameState.currentPlayer === 'X' ? 'O' : 'X';
+        }
+
+        // 6. Refresh UI & Animate Camera
+        updateUI();
+
+        // 7. Auto-Camera Zoom Handling
+        if (gameState.gameWinner) {
+          // If game is over, zoom out to show the full board and trigger modal
+          setZoom('overview');
+          setTimeout(() => showGameOverModal(gameState.gameWinner), 700);
+        } else {
+          // Auto camera: if activeBoard is designated, focus zoom on it; if free play, zoom out to overview
+          if (gameState.activeBoard !== -1) {
+            gameState.focusedBoardIndex = gameState.activeBoard;
+            // Short delay to let the player visually appreciate their mark before camera moves
+            setTimeout(() => {
+              setZoom('focused', gameState.activeBoard);
+            }, 350);
+          } else {
+            // Free play -> Zoom out so the user can easily choose any quadrant
+            setTimeout(() => {
+              setZoom('overview');
+            }, 350);
+          }
+
+          // Show quick pass phone prompt
+          showPassPrompt();
+        }
+      }
+
+      // --- Undo Functionality ---
+      function undoMove() {
+        if (gameState.history.length === 0 || gameState.gameWinner) return;
+
+        const lastMove = gameState.history.pop();
+        gameState.boards[lastMove.boardIdx][lastMove.cellIdx] = null;
+        gameState.boardWinners = [...lastMove.prevBoardWinners];
+        gameState.activeBoard = lastMove.prevActiveBoard;
+        gameState.gameWinner = lastMove.prevGameWinner;
+        gameState.currentPlayer = lastMove.player;
+
+        updateUI();
+
+        if (gameState.activeBoard !== -1) {
+          setZoom('focused', gameState.activeBoard);
+        } else {
+          setZoom('overview');
+        }
+      }
+
+      // --- Reset Game Board ---
+      function resetGame() {
+        gameState.boards = Array.from({ length: 9 }, () => Array(9).fill(null));
+        gameState.boardWinners = Array(9).fill(null);
+        gameState.activeBoard = -1;
+        gameState.currentPlayer = 'X';
+        gameState.gameWinner = null;
+        gameState.history = [];
+        
+        hideGameOverModal();
+        setZoom('overview');
+        updateUI();
+      }
+
+      // --- Camera & Viewport Zoom Matrix ---
+      function setZoom(mode, targetBoardIdx = gameState.focusedBoardIndex) {
+        gameState.zoomState = mode;
+        gameState.focusedBoardIndex = targetBoardIdx;
+
+        if (mode === 'overview') {
+          dom.boardZoomLayer.style.transform = 'scale(1) translate(0%, 0%)';
+          dom.viewText.textContent = 'Zoom In';
+        } else {
+          // Calculate grid offset for 3x3 layout (boardIdx 0 to 8)
+          // 0: TL, 1: TC, 2: TR, 3: ML, 4: MC, 5: MR, 6: BL, 7: BC, 8: BR
+          const col = targetBoardIdx % 3; // 0, 1, 2
+          const row = Math.floor(targetBoardIdx / 3); // 0, 1, 2
+
+          // Exact center offsets in percentage for 3x3 grid
+          const offsetX = (1 - col) * 33.3333; // Shift left or right to viewport center
+          const offsetY = (1 - row) * 33.3333; // Shift up or down to viewport center
+
+          dom.boardZoomLayer.style.transform = `scale(2.35) translate(${offsetX}%, ${offsetY}%)`;
+          dom.viewText.textContent = 'Zoom Out';
+        }
+
+        playSound('zoom');
+      }
+
+      function toggleZoom() {
+        if (gameState.zoomState === 'overview') {
+          const target = gameState.activeBoard !== -1 ? gameState.activeBoard : gameState.focusedBoardIndex;
+          setZoom('focused', target);
+        } else {
+          setZoom('overview');
+        }
+      }
+
+      // --- UI Refresh / Synchronization ---
+      function updateUI() {
+        // 1. Sync Mini-Board Cells
+        for (let b = 0; b < 9; b++) {
+          const miniBoardEl = dom.boardZoomLayer.children[b];
+          const isBoardWon = gameState.boardWinners[b] !== null;
+          const isBoardActive = !gameState.gameWinner && !isBoardWon && (gameState.activeBoard === -1 || gameState.activeBoard === b);
+
+          // Visual highlight for active mini-board
+          if (isBoardActive) {
+            miniBoardEl.classList.add('active-board-highlight', 'border-amber-300');
+            miniBoardEl.classList.remove('border-emerald-900/80', 'opacity-50');
+          } else {
+            miniBoardEl.classList.remove('active-board-highlight', 'border-amber-300');
+            if (!gameState.gameWinner && gameState.activeBoard !== -1 && !isBoardWon) {
+              miniBoardEl.classList.add('opacity-75');
+            } else {
+              miniBoardEl.classList.remove('opacity-75');
+            }
+          }
+
+          // Update individual cells inside
+          const cells = miniBoardEl.querySelectorAll('.cell');
+          cells.forEach((cellEl, c) => {
+            const val = gameState.boards[b][c];
+            cellEl.innerHTML = '';
+
+            if (val === 'X') {
+              cellEl.innerHTML = getChalkXSVG('w-7 h-7 sm:w-8 sm:h-8');
+              cellEl.disabled = true;
+            } else if (val === 'O') {
+              cellEl.innerHTML = getChalkOSVG('w-7 h-7 sm:w-8 sm:h-8');
+              cellEl.disabled = true;
+            } else {
+              cellEl.disabled = !isBoardActive || gameState.gameWinner !== null;
+            }
+          });
+
+          // Update Mini-Board Giant Overlay
+          const overlayEl = miniBoardEl.querySelector('.board-overlay');
+          if (isBoardWon) {
+            const winner = gameState.boardWinners[b];
+            overlayEl.classList.remove('opacity-0', 'scale-50');
+            overlayEl.classList.add('opacity-100', 'scale-100');
+
+            if (winner === 'X') {
+              overlayEl.innerHTML = getChalkXSVG('w-20 h-20 sm:w-24 sm:h-24');
+            } else if (winner === 'O') {
+              overlayEl.innerHTML = getChalkOSVG('w-20 h-20 sm:w-24 sm:h-24');
+            } else {
+              overlayEl.innerHTML = getChalkTieSVG();
+            }
+          } else {
+            overlayEl.classList.add('opacity-0', 'scale-50');
+            overlayEl.classList.remove('opacity-100', 'scale-100');
+            overlayEl.innerHTML = '';
+          }
+        }
+
+        // 2. Sync Top Turn Banner
+        const isX = gameState.currentPlayer === 'X';
+        dom.turnBadge.textContent = gameState.currentPlayer;
+        if (isX) {
+          dom.turnBadge.className = 'w-11 h-11 rounded-lg border-2 flex items-center justify-center font-chalk text-2xl font-bold transition-all bg-sky-950/70 border-sky-400 text-chalkX shadow-lg shadow-sky-500/20';
+          dom.turnPlayerName.textContent = 'Player 1 (X)';
+          dom.turnPlayerName.className = 'font-chalk text-lg md:text-xl font-bold text-sky-400';
+        } else {
+          dom.turnBadge.className = 'w-11 h-11 rounded-lg border-2 flex items-center justify-center font-chalk text-2xl font-bold transition-all bg-rose-950/70 border-rose-400 text-chalkO shadow-lg shadow-rose-500/20';
+          dom.turnPlayerName.textContent = 'Player 2 (O)';
+          dom.turnPlayerName.className = 'font-chalk text-lg md:text-xl font-bold text-rose-400';
+        }
+
+        // Guidance Subtext
+        if (gameState.gameWinner) {
+          dom.turnGuidance.innerHTML = `<span class="text-emerald-300 font-bold">Game Complete!</span>`;
+        } else if (gameState.activeBoard === -1) {
+          dom.turnGuidance.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> <span class="text-emerald-300 font-bold">Free Play! Choose any available board</span>`;
+        } else {
+          const boardNames = ['Top-Left', 'Top-Center', 'Top-Right', 'Middle-Left', 'Center', 'Middle-Right', 'Bottom-Left', 'Bottom-Center', 'Bottom-Right'];
+          dom.turnGuidance.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-amber-400"></span> <span>Target Board: <strong class="text-amber-300">${boardNames[gameState.activeBoard]}</strong></span>`;
+        }
+
+        // 3. Scores & Buttons
+        dom.scoreX.textContent = gameState.scores.X;
+        dom.scoreO.textContent = gameState.scores.O;
+        dom.btnUndo.disabled = gameState.history.length === 0 || gameState.gameWinner !== null;
+      }
+
+      // --- Pass Device Notification Prompt ---
+      let passTimeout = null;
+      function showPassPrompt() {
+        clearTimeout(passTimeout);
+        const playerText = gameState.currentPlayer === 'X' ? 'Player 1 (X)' : 'Player 2 (O)';
+        dom.passPrompt.textContent = `📱 Pass device to ${playerText}`;
+        dom.passPrompt.classList.remove('opacity-0');
+        dom.passPrompt.classList.add('opacity-100');
+
+        passTimeout = setTimeout(() => {
+          dom.passPrompt.classList.remove('opacity-100');
+          dom.passPrompt.classList.add('opacity-0');
+        }, 2200);
+      }
+
+      function shakeActiveBoard() {
+        dom.boardViewport.classList.add('ring-4', 'ring-rose-500/80');
+        setTimeout(() => {
+          dom.boardViewport.classList.remove('ring-4', 'ring-rose-500/80');
+        }, 300);
+      }
+
+      // --- Modal Helpers ---
+      function showGameOverModal(winner) {
+        // Count boards won by each
+        const xBoards = gameState.boardWinners.filter(w => w === 'X').length;
+        const oBoards = gameState.boardWinners.filter(w => w === 'O').length;
+
+        dom.recapXBoards.textContent = xBoards;
+        dom.recapOBoards.textContent = oBoards;
+
+        if (winner === 'X') {
+          dom.winnerTitle.textContent = 'PLAYER 1 (X) WINS!';
+          dom.winnerTitle.className = 'font-chalk text-3xl md:text-4xl font-bold text-sky-400 mb-1';
+          dom.winnerSubtitle.textContent = 'Mastered the Giant Grid!';
+        } else if (winner === 'O') {
+          dom.winnerTitle.textContent = 'PLAYER 2 (O) WINS!';
+          dom.winnerTitle.className = 'font-chalk text-3xl md:text-4xl font-bold text-rose-400 mb-1';
+          dom.winnerSubtitle.textContent = 'Mastered the Giant Grid!';
+        } else {
+          dom.winnerTitle.textContent = "IT'S A TIE!";
+          dom.winnerTitle.className = 'font-chalk text-3xl md:text-4xl font-bold text-amber-300 mb-1';
+          dom.winnerSubtitle.textContent = xBoards > oBoards ? 'Tie-Breaker: Player 1 claimed more boards!' : (oBoards > xBoards ? 'Tie-Breaker: Player 2 claimed more boards!' : 'A hard-fought stalemate on both sides.');
+        }
+
+        dom.modalGameOver.classList.remove('hidden');
+        setTimeout(() => {
+          dom.modalGameOver.classList.remove('opacity-0');
+          dom.gameoverCard.classList.remove('scale-95');
+          dom.gameoverCard.classList.add('scale-100');
+        }, 20);
+      }
+
+      function hideGameOverModal() {
+        dom.gameoverCard.classList.remove('scale-100');
+        dom.gameoverCard.classList.add('scale-95');
+        dom.modalGameOver.classList.add('opacity-0');
+        setTimeout(() => {
+          dom.modalGameOver.classList.add('hidden');
+        }, 300);
+      }
+
+      function openRules() {
+        dom.modalRules.classList.remove('hidden');
+        setTimeout(() => dom.modalRules.classList.remove('opacity-0'), 20);
+      }
+
+      function closeRules() {
+        dom.modalRules.classList.add('opacity-0');
+        setTimeout(() => dom.modalRules.classList.add('hidden'), 300);
+      }
+
+      // --- Event Listeners Setup ---
+      function bindEvents() {
+        dom.btnUndo.addEventListener('click', undoMove);
+        dom.btnReset.addEventListener('click', resetGame);
+        dom.btnPlayAgain.addEventListener('click', resetGame);
+        
+        dom.btnZoomOut.addEventListener('click', () => setZoom('overview'));
+        dom.btnZoomIn.addEventListener('click', () => {
+          const target = gameState.activeBoard !== -1 ? gameState.activeBoard : gameState.focusedBoardIndex;
+          setZoom('focused', target);
+        });
+        dom.btnToggleView.addEventListener('click', toggleZoom);
+
+        dom.btnRules.addEventListener('click', openRules);
+        dom.btnCloseRules.addEventListener('click', closeRules);
+        dom.btnGotIt.addEventListener('click', closeRules);
+
+        // Sound FX Toggle
+        dom.btnSound.addEventListener('click', () => {
+          gameState.soundEnabled = !gameState.soundEnabled;
+          dom.iconSoundOn.classList.toggle('hidden', !gameState.soundEnabled);
+          dom.iconSoundOff.classList.toggle('hidden', gameState.soundEnabled);
+        });
+
+        // Close modals with Escape key
+        window.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            closeRules();
+            hideGameOverModal();
+          }
+        });
+      }
+
+      // --- Initialize Game Engine ---
+      function init() {
+        initDOMBoard();
+        bindEvents();
+        updateUI();
+      }
+
+      // Start on DOM ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+
+      // --- Service Worker Registration (PWA) ---
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch(() => {
+            // Service worker optional in preview environments
+          });
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

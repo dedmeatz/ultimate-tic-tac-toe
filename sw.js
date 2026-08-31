@@ -1,36 +1,11 @@
-const CACHE_NAME = 'ulti-tic-tac-toe';
-const ASSETS = [
-    './',
-    './index.html',
-    'https://cdn.tailwindcss.com',
-    'https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Caveat:wght@600;700&family=Patrick+Hand&family=Inter:wght@400;500;600;700&display=swap'
-];
-
-// Install Event
-self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(ASSETS);
-        })
-    );
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open('v1').then((cache) => cache.addAll(['/', './index.html']))
+  );
 });
 
-// Activate Event
-self.addEventListener('activate', (event) => {
-    event.waitUntil(
-        caches.keys().then((keys) => {
-            return Promise.all(
-                keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-            );
-        })
-    );
-});
-
-// Fetch Event (Standard Cache-First Strategy)
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request).then((response) => {
-            return response || fetch(event.request);
-        })
-    );
+self.addEventListener('fetch', (e) => {
+  e.respondWith(
+    caches.match(e.request).then((res) => res || fetch(e.request))
+  );
 });

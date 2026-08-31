@@ -3,7 +3,7 @@ const ASSETS = [
     './',
     './index.html',
     'https://cdn.tailwindcss.com',
-    'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap'
+    'https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Caveat:wght@600;700&family=Patrick+Hand&family=Inter:wght@400;500;600;700&display=swap'
 ];
 
 // Install Event
